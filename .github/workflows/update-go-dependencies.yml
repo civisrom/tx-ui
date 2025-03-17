@@ -3,22 +3,27 @@ name: Update Go Dependencies
 on:
   schedule:
     - cron: '0 0 * * 1'  # Запуск каждую неделю в понедельник в 00:00 UTC
-  workflow_dispatch:      # Возможность ручного запуска
+  workflow_dispatch:
+    inputs:
+      xray_version:
+        description: "Версия Xray-core (например, v24.12.15). Оставьте пустым для последней."
+        required: false
+        default: ""
 
 permissions:
-  contents: write        # Явное указание разрешений
+  contents: write
 
 jobs:
   update:
-    runs-on: ubuntu-latest  # Используем последнюю версию Ubuntu
+    runs-on: ubuntu-latest
     
-    timeout-minutes: 30     # Добавляем таймаут для предотвращения зависания
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0    # Загружаем всю историю
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Go
@@ -26,27 +31,25 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
-          cache: true       # Включаем кэширование модулей
+          cache: true
 
-      - name: Fetch latest Xray-core release
-        id: get_latest_release
+      - name: Determine Xray-core version
+        id: xray_version
         run: |
-          # Получаем список релизов
-          API_RESPONSE=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases)
+          if [[ -n "${{ github.event.inputs.xray_version }}" ]]; then
+            XRAY_VERSION="${{ github.event.inputs.xray_version }}"
+            echo "Using user-defined Xray-core version: $XRAY_VERSION"
+          else
+            echo "Fetching latest Xray-core release..."
+            API_RESPONSE=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases)
+            XRAY_VERSION=$(echo "$API_RESPONSE" | jq -r 'map(select(.prerelease == false)) | .[0].tag_name')
+            echo "Latest release detected: $XRAY_VERSION"
+          fi
 
-          # Извлекаем последний стабильный тег (например, v25.2.21)
-          LATEST_TAG=$(echo "$API_RESPONSE" | jq -r 'map(select(.prerelease == false)) | .[0].tag_name')
+          COMMIT_HASH=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/git/ref/tags/${XRAY_VERSION}" | jq -r .object.sha)
 
-          # Находим конкретный commit SHA для этого тега
-          COMMIT_HASH=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/git/ref/tags/${LATEST_TAG}" | jq -r .object.sha)
-
-          # Генерируем псевдоверсию Go (v1.8.25-0.<date>-<commit>)
-          GO_VERSION="v1.8.25-0.$(date -u +%Y%m%d%H%M%S)-$COMMIT_HASH"
-
-          echo "Latest release: $LATEST_TAG (commit: $COMMIT_HASH, go version: $GO_VERSION)"
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_ENV
+          echo "xray_version=$XRAY_VERSION" >> $GITHUB_ENV
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_ENV
-          echo "go_version=$GO_VERSION" >> $GITHUB_ENV
 
       - name: Check go.mod and go.sum exist
         run: |
@@ -54,8 +57,7 @@ jobs:
             echo "Error: go.mod file not found"
             exit 1
           fi
-          
-          # Проверка наличия go.sum и создание, если отсутствует
+
           if [ ! -f go.sum ]; then
             echo "go.sum file not found, initializing it..."
             go mod tidy
@@ -69,7 +71,7 @@ jobs:
       - name: Update dependencies
         id: update
         run: |
-          set -euo pipefail  # Строгий режим для bash
+          set -euo pipefail
 
           echo "Updating standard Go dependencies..."
           go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | \
@@ -78,11 +80,8 @@ jobs:
             grep -v 'github.com/xtls/xray-core' | \
             xargs -r go get -u
           
-          echo "Updating Xray-core to release ${{ env.latest_tag }} (Go version: ${{ env.go_version }})"
+          echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
           go get github.com/xtls/xray-core@${{ env.commit_hash }}
-
-          echo "Updated Xray-core to:"
-          go list -m github.com/xtls/xray-core
 
           go mod tidy
           go mod verify || exit 1
@@ -111,9 +110,8 @@ jobs:
           git add go.mod go.sum
           git commit -m "chore(deps): update Go dependencies
           
-          Automated update of Go dependencies including xray-core to latest release ${{ env.latest_tag }}"
+          Automated update of Go dependencies including xray-core to ${{ env.xray_version }}"
           
-          # Попытка push с повторами при ошибках
           max_attempts=3
           attempt=1
           
