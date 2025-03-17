@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       xray_version:
-        description: v24.12.15
+        description: "Версия Xray-core (например, v24.12.15). Оставьте пустым для последней."
         required: false
         default: ""
 
