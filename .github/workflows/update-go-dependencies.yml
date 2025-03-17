@@ -5,8 +5,8 @@ on:
     - cron: '0 0 * * 1'  # Запуск каждую неделю в понедельник в 00:00 UTC
   workflow_dispatch:
     inputs:
-      xray_version: v24.12.15
-        description: "Версия Xray-core (например, v24.12.15). Оставьте пустым для последней."
+      xray_version:
+        description: v24.12.15
         required: false
         default: ""
 
