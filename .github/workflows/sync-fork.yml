@@ -1,0 +1,31 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Запуск каждый день в 03:00 UTC
+  workflow_dispatch:  # Запуск вручную
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # Отключаем автоаутентификацию
+
+      - name: Add upstream repository
+        run: |
+          git remote add upstream https://github.com/AghayeCoder/tx-ui.git
+          git fetch upstream
+          git checkout main
+          git merge upstream/main || true  # Автослияние, конфликты вручную
+
+      - name: Push changes to fork
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git push https://x-access-token:$PAT_TOKEN@github.com/${{ github.repository }}.git main
