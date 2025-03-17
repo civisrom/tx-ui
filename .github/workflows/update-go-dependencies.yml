@@ -86,24 +86,28 @@ jobs:
           go clean -modcache  
           go clean -cache  
   
-      - name: Update dependencies  
-        id: update  
-        run: |  
-          set -euxo pipefail  
-  
-          echo "Updating standard Go dependencies..."  
-          go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | \  
-            grep -Ev '^(gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$' | \  
-            xargs -r go get -u  
-  
-          echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"  
-          go get github.com/xtls/xray-core@${{ env.commit_hash }}  
-  
-          go mod tidy  
-          go mod verify  
-  
-          echo "Updated dependencies:"  
-          go list -m all  
+      - name: Update dependencies
+        id: update
+        run: |
+          set -euxo pipefail
+
+          echo "Updating standard Go dependencies..."
+          DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -Ev '^(gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$')
+
+          if [[ -n "$DEP_LIST" ]]; then
+          echo "$DEP_LIST" | xargs -r go get -u
+          else
+          echo "No dependencies to update"
+          fi
+
+          echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
+          go get github.com/xtls/xray-core@${{ env.commit_hash }}
+
+          go mod tidy
+          go mod verify
+
+          echo "Updated dependencies:"
+          go list -m all
   
       - name: Check for changes  
         id: check  
