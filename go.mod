@@ -15,7 +15,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.25.2
 	github.com/tcnksm/go-latest v0.0.0-20170313132115-e3007ae9052e
 	github.com/valyala/fasthttp v1.59.0
-	github.com/xtls/xray-core v1.8.25-0.20241215123619-7d0a80b501d4
+	github.com/xtls/xray-core v1.8.25-0.20241218133935-cab2fdefd321
 	go.uber.org/atomic v1.11.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/text v0.23.0
