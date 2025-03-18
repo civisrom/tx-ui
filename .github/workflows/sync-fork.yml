@@ -1,0 +1,37 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Запуск каждый день в 03:00 UTC
+  workflow_dispatch:  # Возможность запустить вручную
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # Отключаем автоаутентификацию
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Wait for open PRs to be merged
+        run: sleep 30  # Ждём 30 секунд, чтобы дать время auto-merge.yml
+
+      - name: Add upstream repository
+        run: |
+          git remote add upstream https://github.com/ОРИГИНАЛЬНЫЙ_РЕПО.git
+          git fetch upstream
+          git checkout main
+          git merge upstream/main || true  # Если есть конфликты, они решаются вручную
+
+      - name: Push changes to fork
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          git push https://x-access-token:$PAT_TOKEN@github.com/${{ github.repository }}.git main
