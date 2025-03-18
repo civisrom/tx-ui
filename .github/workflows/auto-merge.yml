@@ -51,6 +51,11 @@ jobs:
           else
             echo "PAT_TOKEN is set!"
           fi
+      - name: Debug Git State
+        run: |
+          git remote -v
+          git branch -a
+          git show-ref | grep main || echo "No main ref found"
       - name: Push merged changes
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
