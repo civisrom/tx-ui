@@ -23,6 +23,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Fix duplicate refspec error
+        run: |
+          git remote prune origin
+          git branch -r
+          git fetch --all
+          git checkout main
+          git reset --hard origin/main
 
       - name: Pull latest changes from origin
         run: |
