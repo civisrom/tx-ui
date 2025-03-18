@@ -55,4 +55,5 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          git push https://x-access-token:$PAT_TOKEN@github.com/${{ github.repository }}.git main
+          git remote set-url origin https://x-access-token:$PAT_TOKEN@github.com/${{ github.repository }}.git
+          git push origin HEAD:main --force
