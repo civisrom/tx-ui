@@ -1,0 +1,53 @@
+version: 2
+updates:
+  # Go модули1
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    assignees:
+      - "$GITHUB_REPOSITORY_OWNER"
+    reviewers:
+      - "$GITHUB_REPOSITORY_OWNER"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "go"
+      include: "scope"
+    allow:
+      - dependency-type: "all"
+    ignore:
+      # Игнорировать major версии некоторых потенциально нестабильных зависимостей
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    assignees:
+      - "$GITHUB_REPOSITORY_OWNER"
+    reviewers:
+      - "$GITHUB_REPOSITORY_OWNER"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    allow:
+      - dependency-type: "all"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
