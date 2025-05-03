@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       xray_version:
-        description: "Версия Xray-core (например, v24.12.15). Оставьте пустым для последней."
+        description: "Версия Xray-core (например, v25.4.30). Оставьте пустым для последней."
         required: false
         default: ""
 
@@ -86,17 +86,31 @@ jobs:
           # Проверяем формат версии
           if [[ ! $XRAY_VERSION =~ ^v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "Error: Invalid version format: $XRAY_VERSION" >&2
-            echo "Expected format: v24.12.15 or similar (vГОД.МЕСЯЦ.ДЕНЬ)" >&2
+            echo "Expected format: v25.4.30 or similar (vГОД.МЕСЯЦ.ДЕНЬ)" >&2
             exit 1
           fi
 
           # Получаем commit hash для тега
+          echo "Fetching commit hash for tag $XRAY_VERSION..."
           TAG_INFO=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/XTLS/Xray-core/git/refs/tags/${XRAY_VERSION}") || {
             echo "Error: Failed to fetch tag info for $XRAY_VERSION" >&2
             exit 1
           }
 
-          COMMIT_HASH=$(echo "$TAG_INFO" | jq -r '.object.sha // empty')
+          # Проверяем тип объекта (может быть коммит или тег)
+          OBJECT_TYPE=$(echo "$TAG_INFO" | jq -r '.object.type // empty')
+          if [[ "$OBJECT_TYPE" == "tag" ]]; then
+            # Если это аннотированный тег, нужно получить его содержимое
+            TAG_SHA=$(echo "$TAG_INFO" | jq -r '.object.sha // empty')
+            TAG_OBJECT=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/XTLS/Xray-core/git/tags/${TAG_SHA}") || {
+              echo "Error: Failed to fetch annotated tag object for $XRAY_VERSION" >&2
+              exit 1
+            }
+            COMMIT_HASH=$(echo "$TAG_OBJECT" | jq -r '.object.sha // empty')
+          else
+            # Если это легковесный тег, хеш коммита доступен напрямую
+            COMMIT_HASH=$(echo "$TAG_INFO" | jq -r '.object.sha // empty')
+          fi
 
           if [[ -z "$COMMIT_HASH" || "$COMMIT_HASH" == "null" ]]; then
             echo "Error: Commit hash is empty for $XRAY_VERSION" >&2
