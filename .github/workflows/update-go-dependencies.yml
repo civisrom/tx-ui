@@ -32,6 +32,17 @@ jobs:
           check-latest: true  
           cache: true  
   
+      - name: Initialize go modules
+        run: |
+          set -euxo pipefail
+          
+          test -f go.mod || { echo "Error: go.mod file not found"; exit 1; }
+          
+          echo "Initializing go modules and generating go.sum..."
+          # Загружаем все текущие зависимости и гарантируем создание go.sum
+          go mod download
+          go mod tidy
+  
       - name: Determine Xray-core version  
         id: xray_version  
         run: |  
@@ -75,11 +86,6 @@ jobs:
           echo "xray_version=$XRAY_VERSION" >> $GITHUB_ENV  
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_ENV  
   
-      - name: Check go.mod and go.sum exist  
-        run: |  
-          set -euxo pipefail  
-          test -f go.mod || { echo "Error: go.mod file not found"; exit 1; }  
-  
       - name: Clean Go module cache  
         run: |  
           go clean -modcache  
@@ -91,14 +97,17 @@ jobs:
           set -euxo pipefail
 
           echo "Updating standard Go dependencies except excluded ones..."
-          # Получаем список всех зависимостей за исключением тех, которые не нужно обновлять
+          # Сначала получаем полный список зависимостей
+          go list -m all > /dev/null
+          
+          # Теперь получаем список всех зависимостей за исключением тех, которые не нужно обновлять
           DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -v "^gorm.io/gorm$" | grep -v "^gvisor.dev/gvisor$" | grep -v "^github.com/mymmrac/telego$" | grep -v "^github.com/xtls/xray-core$")
 
           if [[ -n "$DEP_LIST" ]]; then
             echo "Updating dependencies: $DEP_LIST"
             echo "$DEP_LIST" | xargs -r go get -u
           else
-            echo "No dependencies to update"
+            echo "No dependencies to update or all dependencies are excluded"
           fi
 
           echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
@@ -112,19 +121,6 @@ jobs:
           echo "Running go mod tidy to update go.sum..."
           go mod tidy
           
-          # Проверяем, что go.sum создан
-          if [ ! -f "go.sum" ]; then
-            echo "Error: go.sum file was not created" >&2
-            exit 1
-          fi
-          
-          # Проверяем, что go.mod и go.sum валидны
-          echo "Verifying go.mod and go.sum..."
-          go mod verify || {
-            echo "Error: go.mod verification failed" >&2
-            exit 1
-          }
-
           echo "Updated dependencies:"
           go list -m all
   
@@ -132,7 +128,7 @@ jobs:
         id: check  
         run: |  
           set -euxo pipefail  
-          if git diff --quiet go.mod go.sum 2>/dev/null; then  
+          if git diff --quiet go.mod go.sum; then  
             echo "changes=false" >> $GITHUB_OUTPUT  
             echo "No changes detected in dependencies"  
           else  
@@ -149,19 +145,7 @@ jobs:
           git config --global user.name "github-actions[bot]"  
           git config --global user.email "github-actions[bot]@users.noreply.github.com"  
             
-          # Проверяем наличие файлов перед добавлением
-          if [ -f "go.mod" ]; then
-            git add go.mod
-          else
-            echo "Warning: go.mod file not found, skipping" >&2
-          fi
-          
-          if [ -f "go.sum" ]; then
-            git add go.sum
-          else
-            echo "Warning: go.sum file not found, skipping" >&2
-          fi
-          
+          git add go.mod go.sum  
           git commit -m "chore(deps): update Go dependencies including xray-core to ${{ env.xray_version }}"  
   
           max_attempts=3  
@@ -183,4 +167,4 @@ jobs:
               git reset --hard origin/main  
               sleep 5  
             fi  
-           done
+          done
