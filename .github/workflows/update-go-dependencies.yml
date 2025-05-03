@@ -91,7 +91,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          echo "Updating standard Go dependencies except gorm.io/gorm..."
+          echo "Updating standard Go dependencies except excluded ones..."
           # Получаем список всех зависимостей за исключением тех, которые не нужно обновлять
           DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -v "^gorm.io/gorm$" | grep -v "^gvisor.dev/gvisor$" | grep -v "^github.com/mymmrac/telego$" | grep -v "^github.com/xtls/xray-core$")
 
@@ -104,6 +104,10 @@ jobs:
 
           echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
           go get github.com/xtls/xray-core@${{ env.commit_hash }}
+          
+          # Фиксируем версию gorm на v1.25.12
+          echo "Fixing gorm.io/gorm to v1.25.12"
+          go get gorm.io/gorm@v1.25.12
 
           go mod tidy
           go mod verify
@@ -154,4 +158,4 @@ jobs:
               git reset --hard origin/main  
               sleep 5  
             fi  
-          done
+          
