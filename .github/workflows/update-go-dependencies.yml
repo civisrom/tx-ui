@@ -91,28 +91,33 @@ jobs:
         run: |
           set -euxo pipefail
 
-          echo "Setting fixed versions for specific dependencies..."
+          echo "Установка фиксированных версий зависимостей..."
           go get gorm.io/gorm@v1.25.12
           go get github.com/mymmrac/telego@v0.32.0
           go get gvisor.dev/gvisor@v0.0.0-20250428193742-2d800c3129d5
 
-          echo "Updating standard Go dependencies..."
+          echo "Обновление остальных зависимостей..."
           DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -Ev '^(gorm.io/gorm|gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$')
-
           if [[ -n "$DEP_LIST" ]]; then
             echo "$DEP_LIST" | xargs -r go get -u
           else
-            echo "No dependencies to update"
+            echo "Нет зависимостей для обновления"
           fi
 
-          echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
-          go get github.com/xtls/xray-core@${{ env.commit_hash }}
+           echo "Обновление Xray-core до версии ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
+           go get github.com/xtls/xray-core@${{ env.commit_hash }}
 
-          go mod tidy
-          go mod verify
+           echo "Повторная фиксация версий зависимостей..."
+           go get gorm.io/gorm@v1.25.12
+           go get github.com/mymmrac/telego@v0.32.0
+           go get gvisor.dev/gvisor@v0.0.0-20250428193742-2d800c3129d5
 
-          echo "Updated dependencies:"
-          go list -m all
+           go mod tidy
+           go mod verify
+
+           echo "Обновленные зависимости:"
+           go list -m all
+        
   
       - name: Check for changes  
         id: check  
