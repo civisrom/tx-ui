@@ -92,7 +92,7 @@ jobs:
           set -euxo pipefail
 
           echo "Updating standard Go dependencies..."
-          DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -Ev '^(gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$')
+          DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -Ev '^(gorm.io/gorm|gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$')
 
           if [[ -n "$DEP_LIST" ]]; then
           echo "$DEP_LIST" | xargs -r go get -u
