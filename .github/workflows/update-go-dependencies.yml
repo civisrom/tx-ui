@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       xray_version:
-        description: "Версия Xray-core (например, v25.4.30). Оставьте пустым для последней."
+        description: "Версия Xray-core (например, v24.12.15). Оставьте пустым для последней."
         required: false
         default: ""
 
@@ -49,7 +49,6 @@ jobs:
           go mod download
           go mod tidy
           
-          # Проверяем, создан ли go.sum
           test -f go.sum || { echo "Error: go.sum file not created"; exit 1; }
           echo "go.sum successfully created or updated"
 
@@ -63,18 +62,17 @@ jobs:
             echo "Using user-defined Xray-core version: $XRAY_VERSION"
           else
             echo "Fetching latest Xray-core release..."
-            API_RESPONSE=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/XTLS/Xray-core/releases/latest" || {
-              echo "Error: Failed to fetch latest release from GitHub API" >&2
+            API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=1" || {
+              echo "Error: Failed to fetch releases from GitHub API" >&2
               exit 1
             })
 
-            # Проверяем, что API_RESPONSE не пустой
             if [[ -z "$API_RESPONSE" ]]; then
               echo "Error: Empty response from GitHub API" >&2
               exit 1
             fi
 
-            XRAY_VERSION=$(echo "$API_RESPONSE" | jq -r '.tag_name // empty')
+            XRAY_VERSION=$(echo "$API_RESPONSE" | jq -r '.[0].tag_name // empty')
             if [[ -z "$XRAY_VERSION" ]]; then
               echo "Error: Unable to determine latest release" >&2
               exit 1
@@ -83,39 +81,15 @@ jobs:
             echo "Latest release detected: $XRAY_VERSION"
           fi
 
-          # Проверяем формат версии
-          if [[ ! $XRAY_VERSION =~ ^v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "Error: Invalid version format: $XRAY_VERSION" >&2
-            echo "Expected format: v25.4.30 or similar (vГОД.МЕСЯЦ.ДЕНЬ)" >&2
-            exit 1
-          fi
-
-          # Получаем commit hash для тега
-          echo "Fetching commit hash for tag $XRAY_VERSION..."
-          TAG_INFO=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/XTLS/Xray-core/git/refs/tags/${XRAY_VERSION}") || {
-            echo "Error: Failed to fetch tag info for $XRAY_VERSION" >&2
+          COMMIT_HASH=$(curl -fsSL "https://api.github.com/repos/XTLS/Xray-core/git/ref/tags/${XRAY_VERSION}" | jq -r .object.sha) || {
+            echo "Error: Failed to fetch commit SHA for tag $XRAY_VERSION" >&2
             exit 1
           }
-
-          # Проверяем тип объекта (может быть коммит или тег)
-          OBJECT_TYPE=$(echo "$TAG_INFO" | jq -r '.object.type // empty')
-          if [[ "$OBJECT_TYPE" == "tag" ]]; then
-            # Если это аннотированный тег, нужно получить его содержимое
-            TAG_SHA=$(echo "$TAG_INFO" | jq -r '.object.sha // empty')
-            TAG_OBJECT=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/XTLS/Xray-core/git/tags/${TAG_SHA}") || {
-              echo "Error: Failed to fetch annotated tag object for $XRAY_VERSION" >&2
-              exit 1
-            }
-            COMMIT_HASH=$(echo "$TAG_OBJECT" | jq -r '.object.sha // empty')
-          else
-            # Если это легковесный тег, хеш коммита доступен напрямую
-            COMMIT_HASH=$(echo "$TAG_INFO" | jq -r '.object.sha // empty')
-          fi
 
           if [[ -z "$COMMIT_HASH" || "$COMMIT_HASH" == "null" ]]; then
             echo "Error: Commit hash is empty for $XRAY_VERSION" >&2
             exit 1
-          }
+          fi
 
           echo "xray_version=$XRAY_VERSION" >> $GITHUB_ENV
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_ENV
@@ -132,8 +106,8 @@ jobs:
 
           echo "Fixing specific dependency versions..."
           go get gorm.io/gorm@v1.25.12
-          go get gvisor.dev/gvisor@latest  # Укажите конкретную версию, если требуется
-          go get github.com/mymmrac/telego@latest  # Укажите конкретную версию, если требуется
+          go get gvisor.dev/gvisor@latest
+          go get github.com/mymmrac/telego@latest
 
           echo "Updating standard Go dependencies except excluded ones..."
           EXCLUDED_DEPS="gorm.io/gorm gvisor.dev/gvisor github.com/mymmrac/telego github.com/xtls/xray-core"
@@ -149,11 +123,9 @@ jobs:
           echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
           go get github.com/xtls/xray-core@${{ env.commit_hash }}
 
-          # Обновляем go.sum
           echo "Running go mod tidy to update go.sum..."
           go mod tidy
           
-          # Проверяем go.sum
           test -f go.sum || { echo "Error: go.sum file not created after tidy"; exit 1; }
           echo "Updated dependencies:"
           go list -m all
