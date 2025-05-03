@@ -91,13 +91,15 @@ jobs:
         run: |
           set -euxo pipefail
 
-          echo "Updating standard Go dependencies..."
-          DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -Ev '^(gorm.io/gorm|gvisor.dev/gvisor|github.com/mymmrac/telego|github.com/xtls/xray-core)$')
+          echo "Updating standard Go dependencies except gorm.io/gorm..."
+          # Получаем список всех зависимостей за исключением тех, которые не нужно обновлять
+          DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -v "^gorm.io/gorm$" | grep -v "^gvisor.dev/gvisor$" | grep -v "^github.com/mymmrac/telego$" | grep -v "^github.com/xtls/xray-core$")
 
           if [[ -n "$DEP_LIST" ]]; then
-          echo "$DEP_LIST" | xargs -r go get -u
+            echo "Updating dependencies: $DEP_LIST"
+            echo "$DEP_LIST" | xargs -r go get -u
           else
-          echo "No dependencies to update"
+            echo "No dependencies to update"
           fi
 
           echo "Updating Xray-core to ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
