@@ -32,6 +32,13 @@ jobs:
           check-latest: true
           cache: true
 
+      - name: Install jq
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y jq
+          jq --version
+
       - name: Initialize and verify go modules
         run: |
           set -euxo pipefail
@@ -50,25 +57,25 @@ jobs:
         id: xray_version
         run: |
           set -euxo pipefail
-          
-          # Проверка, установлен ли jq
-          if ! command -v jq &>/dev/null; then
-            echo "Error: jq is not installed." >&2
-            exit 1
-          fi
 
           if [[ -n "${{ github.event.inputs.xray_version }}" ]]; then
             XRAY_VERSION="${{ github.event.inputs.xray_version }}"
             echo "Using user-defined Xray-core version: $XRAY_VERSION"
           else
             echo "Fetching latest Xray-core release..."
-            API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/XTLS/Xray-core/releases") || {
+            API_RESPONSE=$(curl -fsSL "https://api.github.com/repos/XTLS/Xray-core/releases" || {
               echo "Error: Failed to fetch releases from GitHub API" >&2
               exit 1
-            }
+            })
 
-            XRAY_VERSION=$(echo "$API_RESPONSE" | jq -r 'map(select(.prerelease == false)) | .[0].tag_name')
-            if [[ -z "$XRAY_VERSION" || "$XRAY_VERSION" == "null" ]]; then
+            # Проверяем, что API_RESPONSE не пустой
+            if [[ -z "$API_RESPONSE" ]]; then
+              echo "Error: Empty response from GitHub API" >&2
+              exit 1
+            fi
+
+            XRAY_VERSION=$(echo "$API_RESPONSE" | jq -r 'map(select(.prerelease == false)) | .[0].tag_name // empty')
+            if [[ -z "$XRAY_VERSION" ]]; then
               echo "Error: Unable to determine latest release" >&2
               exit 1
             fi
@@ -101,11 +108,10 @@ jobs:
 
           echo "Fixing specific dependency versions..."
           go get gorm.io/gorm@v1.25.12
-          go get gvisor.dev/gvisor@v0.0.0-20250428193742-2d800c3129d5  # Укажите конкретную версию, если требуется
-          go get github.com/mymmrac/telego@v0.32.0  # Укажите конкретную версию, если требуется
+          go get gvisor.dev/gvisor@latest  # Укажите конкретную версию, если требуется
+          go get github.com/mymmrac/telego@latest  # Укажите конкретную версию, если требуется
 
           echo "Updating standard Go dependencies except excluded ones..."
-          # Получаем список зависимостей, исключая указанные пакеты
           EXCLUDED_DEPS="gorm.io/gorm gvisor.dev/gvisor github.com/mymmrac/telego github.com/xtls/xray-core"
           DEP_LIST=$(go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | grep -v -E "$(echo $EXCLUDED_DEPS | tr ' ' '|')")
 
