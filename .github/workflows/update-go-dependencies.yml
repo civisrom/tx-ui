@@ -79,7 +79,6 @@ jobs:
         run: |  
           set -euxo pipefail  
           test -f go.mod || { echo "Error: go.mod file not found"; exit 1; }  
-          test -f go.sum || { echo "go.sum file not found, initializing it..."; go mod tidy; }  
   
       - name: Clean Go module cache  
         run: |  
@@ -109,8 +108,22 @@ jobs:
           echo "Fixing gorm.io/gorm to v1.25.12"
           go get gorm.io/gorm@v1.25.12
 
+          # Явно выполняем go mod tidy, чтобы обновить go.sum
+          echo "Running go mod tidy to update go.sum..."
           go mod tidy
-          go mod verify
+          
+          # Проверяем, что go.sum создан
+          if [ ! -f "go.sum" ]; then
+            echo "Error: go.sum file was not created" >&2
+            exit 1
+          fi
+          
+          # Проверяем, что go.mod и go.sum валидны
+          echo "Verifying go.mod and go.sum..."
+          go mod verify || {
+            echo "Error: go.mod verification failed" >&2
+            exit 1
+          }
 
           echo "Updated dependencies:"
           go list -m all
@@ -119,7 +132,7 @@ jobs:
         id: check  
         run: |  
           set -euxo pipefail  
-          if git diff --quiet go.mod go.sum; then  
+          if git diff --quiet go.mod go.sum 2>/dev/null; then  
             echo "changes=false" >> $GITHUB_OUTPUT  
             echo "No changes detected in dependencies"  
           else  
@@ -136,7 +149,19 @@ jobs:
           git config --global user.name "github-actions[bot]"  
           git config --global user.email "github-actions[bot]@users.noreply.github.com"  
             
-          git add go.mod go.sum  
+          # Проверяем наличие файлов перед добавлением
+          if [ -f "go.mod" ]; then
+            git add go.mod
+          else
+            echo "Warning: go.mod file not found, skipping" >&2
+          fi
+          
+          if [ -f "go.sum" ]; then
+            git add go.sum
+          else
+            echo "Warning: go.sum file not found, skipping" >&2
+          fi
+          
           git commit -m "chore(deps): update Go dependencies including xray-core to ${{ env.xray_version }}"  
   
           max_attempts=3  
@@ -158,4 +183,4 @@ jobs:
               git reset --hard origin/main  
               sleep 5  
             fi  
-          
+           done
