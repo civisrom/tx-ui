@@ -14,13 +14,13 @@ jobs:
       matrix:
         platform:
           - amd64
-          - arm64
-          - armv7
-          - armv6
-          - 386
-          - armv5
-          - s390x
-    runs-on: ubuntu-22.04
+#          - arm64
+#          - armv7
+#          - armv6
+#          - 386
+#          - armv5
+#          - s390x
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
           cd x-ui/bin
           
           # Download dependencies
-          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v25.4.30/"
+          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v25.5.16/"
           if [ "${{ matrix.platform }}" == "amd64" ]; then
             wget -q ${Xray_URL}Xray-linux-64.zip
             unzip Xray-linux-64.zip
