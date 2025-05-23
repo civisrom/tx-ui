@@ -72,6 +72,8 @@ jobs:
             exit 1  
           fi  
   
+          echo "xray_version=$XRAY_VERSION" >> $GITHUB_OUTPUT
+          echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
           echo "xray_version=$XRAY_VERSION" >> $GITHUB_ENV  
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_ENV  
   
@@ -104,19 +106,19 @@ jobs:
             echo "Нет зависимостей для обновления"
           fi
 
-           echo "Обновление Xray-core до версии ${{ env.xray_version }} (commit: ${{ env.commit_hash }})"
-           go get github.com/xtls/xray-core@${{ env.commit_hash }}
+          echo "Обновление Xray-core до версии $XRAY_VERSION (commit: $COMMIT_HASH)"
+          go get github.com/xtls/xray-core@$COMMIT_HASH
 
-           echo "Повторная фиксация версий зависимостей..."
-           go get gorm.io/gorm@v1.25.12
-           go get github.com/mymmrac/telego@v0.32.0
-           go get gvisor.dev/gvisor@v0.0.0-20250428193742-2d800c3129d5
+          echo "Повторная фиксация версий зависимостей..."
+          go get gorm.io/gorm@v1.25.12
+          go get github.com/mymmrac/telego@v0.32.0
+          go get gvisor.dev/gvisor@v0.0.0-20250428193742-2d800c3129d5
 
-           go mod tidy
-           go mod verify
+          go mod tidy
+          go mod verify
 
-           echo "Обновленные зависимости:"
-           go list -m all
+          echo "Обновленные зависимости:"
+          go list -m all
         
   
       - name: Check for changes  
@@ -141,7 +143,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"  
             
           git add go.mod go.sum  
-          git commit -m "chore(deps): update Go dependencies including xray-core to ${{ env.xray_version }}"  
+          git commit -m "chore(deps): update Go dependencies including xray-core to $XRAY_VERSION"  
   
           max_attempts=3  
           attempt=1  
