@@ -74,8 +74,6 @@ jobs:
   
           echo "xray_version=$XRAY_VERSION" >> $GITHUB_OUTPUT
           echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
-          echo "xray_version=$XRAY_VERSION" >> $GITHUB_ENV  
-          echo "commit_hash=$COMMIT_HASH" >> $GITHUB_ENV  
   
       - name: Check go.mod and go.sum exist  
         run: |  
@@ -92,6 +90,21 @@ jobs:
         id: update
         run: |
           set -euxo pipefail
+
+          # Получаем переменные из предыдущего шага
+          XRAY_VERSION="${{ steps.xray_version.outputs.xray_version }}"
+          COMMIT_HASH="${{ steps.xray_version.outputs.commit_hash }}"
+          
+          # Проверяем, что переменные установлены
+          if [[ -z "$XRAY_VERSION" ]]; then
+            echo "Error: XRAY_VERSION is not set" >&2
+            exit 1
+          fi
+          
+          if [[ -z "$COMMIT_HASH" ]]; then
+            echo "Error: COMMIT_HASH is not set" >&2
+            exit 1
+          fi
 
           echo "Установка фиксированных версий зависимостей..."
           go get gorm.io/gorm@v1.25.12
@@ -138,6 +151,9 @@ jobs:
         if: steps.check.outputs.changes == 'true'  
         run: |  
           set -euxo pipefail  
+          
+          # Получаем версию для коммита
+          XRAY_VERSION="${{ steps.xray_version.outputs.xray_version }}"
   
           git config --global user.name "github-actions[bot]"  
           git config --global user.email "github-actions[bot]@users.noreply.github.com"  
