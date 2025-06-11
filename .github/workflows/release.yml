@@ -14,13 +14,13 @@ jobs:
       matrix:
         platform:
           - amd64
-          - arm64
-          - armv7
-          - armv6
-          - 386
-          - armv5
-          - s390x
-          - windows-amd64   # Added Windows support
+#          - arm64
+#          - armv7
+#          - armv6
+#          - 386
+#          - armv5
+#          - s390x
+#          - windows-amd64   # Added Windows support
     runs-on: ${{ matrix.platform == 'windows-amd64' && 'windows-latest' || 'ubuntu-22.04' }}
     steps:
       - name: Checkout repository
@@ -89,7 +89,7 @@ jobs:
           cd x-ui/bin
           
           # Download dependencies
-          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v25.6.8/"
+          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v25.5.16/"
           if [ "${{ matrix.platform }}" == "amd64" ]; then
             wget -q ${Xray_URL}Xray-linux-64.zip
             unzip Xray-linux-64.zip
