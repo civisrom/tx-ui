@@ -1,6 +1,6 @@
 module x-ui
 
-go 1.24.3
+go 1.24.4
 
 require (
 	github.com/gin-contrib/gzip v1.2.3
